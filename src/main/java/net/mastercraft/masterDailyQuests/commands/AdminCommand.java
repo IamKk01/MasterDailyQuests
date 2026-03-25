@@ -6,9 +6,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.util.StringUtil;
 
-public class AdminCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class AdminCommand implements CommandExecutor, TabCompleter {
 
     private final MasterDailyQuests plugin;
 
@@ -28,7 +34,7 @@ public class AdminCommand implements CommandExecutor {
                 sender.sendMessage("Only players can use the visual editor.");
                 return true;
             }
-            AdminEditorGUI.open(player, plugin, 0); // Open on Page 0
+            AdminEditorGUI.open(player, plugin, 0);
             return true;
         }
 
@@ -61,5 +67,40 @@ public class AdminCommand implements CommandExecutor {
         sender.sendMessage("§e/dqa editor §7- Opens the GUI editor");
         sender.sendMessage("§e/dqa reroll <player> <position/all> §7- Rerolls or resets a player's quest");
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> completions = new ArrayList<>();
+        List<String> commands = new ArrayList<>();
+
+        if (args.length == 1) {
+            if (sender.hasPermission("mdailyquests.admin.*")) {
+                commands.add("editor");
+                commands.add("reroll");
+            }
+            StringUtil.copyPartialMatches(args[0], commands, completions);
+        }
+        else if (args.length == 2) {
+            if (args[0].equalsIgnoreCase("reroll") && sender.hasPermission("mdailyquests.admin.*")) {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    commands.add(p.getName());
+                }
+                StringUtil.copyPartialMatches(args[1], commands, completions);
+            }
+        }
+        else if (args.length == 3) {
+            if (args[0].equalsIgnoreCase("reroll") && sender.hasPermission("mdailyquests.admin.*")) {
+                commands.add("all");
+                int maxSlots = plugin.getConfigManager().getQuestSlots().size();
+                for (int i = 1; i <= maxSlots; i++) {
+                    commands.add(String.valueOf(i));
+                }
+                StringUtil.copyPartialMatches(args[2], commands, completions);
+            }
+        }
+
+        Collections.sort(completions);
+        return completions;
     }
 }

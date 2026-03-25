@@ -5,6 +5,7 @@ import net.mastercraft.masterDailyQuests.managers.ConfigManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -56,12 +57,22 @@ public class PlayerMainGUI implements InventoryHolder {
                 ItemMeta meta = questItem.getItemMeta();
 
                 if (meta != null) {
-                    String questName = type.substring(0, 1).toUpperCase() + type.substring(1).toLowerCase() + " Task";
+                    String questName = type.substring(0, 1).toUpperCase() + type.substring(1).toLowerCase().replace("_", " ") + " Task";
                     meta.setDisplayName("§3" + questName);
 
-                    // Uses the new fetcher to get real Mob/Item names
                     String realTargetName = plugin.getRealTargetName(target);
-                    String taskStr = "§7" + getActionWord(type) + " " + amount + " " + realTargetName;
+                    String taskStr;
+
+                    // Custom string formatting for Dungeon Quests
+                    if (type.equalsIgnoreCase("REACH_STAGE")) {
+                        taskStr = "§7Reach Stage " + amount + " in " + realTargetName;
+                    } else if (type.equalsIgnoreCase("PLAY_DUNGEON")) {
+                        taskStr = "§7Play " + realTargetName + " " + amount + " times";
+                    } else if (type.equalsIgnoreCase("FINISH_DUNGEON")) {
+                        taskStr = "§7Finish " + realTargetName + " " + amount + " times";
+                    } else {
+                        taskStr = "§7" + getActionWord(type) + " " + amount + " " + realTargetName;
+                    }
 
                     List<String> dynamicLore = new ArrayList<>();
 
@@ -83,8 +94,8 @@ public class PlayerMainGUI implements InventoryHolder {
                     if (rewards == null || rewards.isEmpty()) {
                         dynamicLore.add("§3▌ §7- None");
                     } else {
-                        org.bukkit.NamespacedKey keyType = new org.bukkit.NamespacedKey(plugin, "reward_type");
-                        org.bukkit.NamespacedKey keyAmount = new org.bukkit.NamespacedKey(plugin, "reward_amount");
+                        NamespacedKey keyType = new NamespacedKey(plugin, "reward_type");
+                        NamespacedKey keyAmount = new NamespacedKey(plugin, "reward_amount");
 
                         for (ItemStack reward : rewards) {
                             if (reward == null || reward.getType() == Material.AIR) continue;
@@ -184,6 +195,9 @@ public class PlayerMainGUI implements InventoryHolder {
             case "SELLING": return Material.GOLD_INGOT;
             case "TRADING": return Material.EMERALD;
             case "BUYING": return Material.CHEST;
+            case "PLAY_DUNGEON": return Material.IRON_DOOR;
+            case "REACH_STAGE": return Material.LADDER;
+            case "FINISH_DUNGEON": return Material.BEACON;
             default: return Material.WRITTEN_BOOK;
         }
     }
@@ -198,6 +212,9 @@ public class PlayerMainGUI implements InventoryHolder {
             case "SELLING": return "Sell";
             case "TRADING": return "Trade";
             case "BUYING": return "Buy";
+            case "PLAY_DUNGEON": return "Play";
+            case "REACH_STAGE": return "Reach Stage";
+            case "FINISH_DUNGEON": return "Finish";
             default: return "Complete";
         }
     }

@@ -5,9 +5,13 @@ import net.mastercraft.masterDailyQuests.gui.PlayerMainGUI;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-public class PlayerCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.List;
+
+public class PlayerCommand implements CommandExecutor, TabCompleter {
 
     private final MasterDailyQuests plugin;
 
@@ -18,17 +22,17 @@ public class PlayerCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
+            sender.sendMessage("Only players can open the daily quests menu.");
             return true;
         }
 
-        if (!player.hasPermission("mdailyquests.use")) {
-            player.sendMessage("§cYou do not have permission to use this.");
-            return true;
-        }
-
-        // Updated to pass the main plugin instance
         PlayerMainGUI.open(player, plugin);
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        // Return an empty list so Bukkit stops suggesting player names
+        return new ArrayList<>();
     }
 }

@@ -3,6 +3,7 @@ package net.mastercraft.masterDailyQuests;
 import net.mastercraft.masterDailyQuests.commands.AdminCommand;
 import net.mastercraft.masterDailyQuests.commands.PlayerCommand;
 import net.mastercraft.masterDailyQuests.listeners.ChatListener;
+import net.mastercraft.masterDailyQuests.listeners.DungeonEventListener;
 import net.mastercraft.masterDailyQuests.listeners.InventoryListener;
 import net.mastercraft.masterDailyQuests.listeners.QuestListener;
 import net.mastercraft.masterDailyQuests.listeners.ShopGUIPlusListener;
@@ -22,7 +23,6 @@ public final class MasterDailyQuests extends JavaPlugin {
     private DataManager dataManager;
     private QuestManager questManager;
 
-    // THE OPTIMIZATION: Stores names in RAM so we don't spam Reflection
     private final Map<String, String> nameCache = new HashMap<>();
 
     @Override
@@ -32,8 +32,15 @@ public final class MasterDailyQuests extends JavaPlugin {
         questManager = new QuestManager(this);
         dataManager = new DataManager(this);
 
-        getCommand("dailyquests").setExecutor(new PlayerCommand(this));
-        getCommand("dqa").setExecutor(new AdminCommand(this));
+        // --- COMMAND REGISTRATION WITH TAB COMPLETION ---
+        PlayerCommand playerCmd = new PlayerCommand(this);
+        getCommand("dailyquests").setExecutor(playerCmd);
+        getCommand("dailyquests").setTabCompleter(playerCmd);
+
+        AdminCommand adminCmd = new AdminCommand(this);
+        getCommand("dqa").setExecutor(adminCmd);
+        getCommand("dqa").setTabCompleter(adminCmd);
+        // ------------------------------------------------
 
         getServer().getPluginManager().registerEvents(new InventoryListener(this), this);
         getServer().getPluginManager().registerEvents(new ChatListener(this), this);
@@ -46,6 +53,11 @@ public final class MasterDailyQuests extends JavaPlugin {
             getLogger().info("Successfully hooked into ShopGUI+!");
         }
 
+        if (getServer().getPluginManager().getPlugin("MasterDungeons") != null) {
+            getServer().getPluginManager().registerEvents(new DungeonEventListener(questListener), this);
+            getLogger().info("Successfully hooked into MasterDungeons Events!");
+        }
+
         getLogger().info("MasterDailyQuests has been enabled successfully.");
     }
 
@@ -55,28 +67,22 @@ public final class MasterDailyQuests extends JavaPlugin {
             dataManager.saveAllCachedData();
             getLogger().info("Saved all player quest data successfully.");
         }
-        nameCache.clear(); // Clear memory on shutdown
+        nameCache.clear();
     }
 
     public ConfigManager getConfigManager() { return configManager; }
     public DataManager getDataManager() { return dataManager; }
     public QuestManager getQuestManager() { return questManager; }
 
-    // ==========================================
-    // UTILITY: DYNAMIC NAME FETCHER (Optimized)
-    // ==========================================
-
     public String getRealTargetName(String raw) {
         if (raw == null || raw.equalsIgnoreCase("ANY")) return "Any";
 
-        // 1. Check if we already found this name recently! (Instant lookup)
         if (nameCache.containsKey(raw)) {
             return nameCache.get(raw);
         }
 
         String resolvedName = null;
 
-        // 2. Check for MasterDungeons Mobs
         if (raw.startsWith("MD:")) {
             String id = raw.substring(3);
             if (getServer().getPluginManager().isPluginEnabled("MasterDungeons")) {
@@ -101,7 +107,6 @@ public final class MasterDailyQuests extends JavaPlugin {
             if (resolvedName == null) resolvedName = formatFriendlyName(id);
         }
 
-        // 3. Check for MythicMobs
         else if (raw.startsWith("MYTHIC:")) {
             String id = raw.substring(7);
             if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
@@ -112,12 +117,10 @@ public final class MasterDailyQuests extends JavaPlugin {
             if (resolvedName == null) resolvedName = formatFriendlyName(id);
         }
 
-        // 4. Vanilla items/mobs
         else {
             resolvedName = formatFriendlyName(raw);
         }
 
-        // Save the result to our RAM cache so we never have to run the heavy code for this mob again
         nameCache.put(raw, resolvedName);
         return resolvedName;
     }

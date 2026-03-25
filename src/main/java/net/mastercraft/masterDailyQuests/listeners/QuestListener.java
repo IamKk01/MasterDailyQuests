@@ -29,11 +29,11 @@ public class QuestListener implements Listener {
         this.plugin = plugin;
     }
 
+    // Standard Cumulative Progress
     public void checkQuestProgress(Player player, String actionType, String actionTarget, int amountToAdd) {
         List<String> activeQuests = plugin.getDataManager().getActiveQuests(player.getUniqueId());
         if (activeQuests == null || activeQuests.isEmpty()) return;
 
-        // Formats everything to uppercase so "MYTHIC:SkeletonKing" matches "MYTHIC:SKELETONKING" safely
         String formattedTarget = actionTarget.replace("minecraft:", "").toUpperCase();
 
         for (String questId : activeQuests) {
@@ -41,12 +41,31 @@ public class QuestListener implements Listener {
             if (qConf == null) continue;
 
             String type = qConf.getString("type", "").toUpperCase();
-
             if (type.equals(actionType)) {
                 String target = qConf.getString("target", "ANY").toUpperCase();
-
                 if (target.equals("ANY") || target.equals(formattedTarget)) {
                     processQuestProgress(player, questId, amountToAdd);
+                }
+            }
+        }
+    }
+
+    // Absolute Progress (For "Reach Stage" Quests)
+    public void updateQuestProgressAbsolute(Player player, String actionType, String actionTarget, int highestStageReached) {
+        List<String> activeQuests = plugin.getDataManager().getActiveQuests(player.getUniqueId());
+        if (activeQuests == null || activeQuests.isEmpty()) return;
+
+        String formattedTarget = actionTarget.replace("minecraft:", "").toUpperCase();
+
+        for (String questId : activeQuests) {
+            FileConfiguration qConf = plugin.getQuestManager().getQuest(questId);
+            if (qConf == null) continue;
+
+            String type = qConf.getString("type", "").toUpperCase();
+            if (type.equals(actionType)) {
+                String target = qConf.getString("target", "ANY").toUpperCase();
+                if (target.equals("ANY") || target.equals(formattedTarget)) {
+                    processQuestProgressAbsolute(player, questId, highestStageReached);
                 }
             }
         }
@@ -60,54 +79,70 @@ public class QuestListener implements Listener {
         int currentProgress = plugin.getDataManager().getProgress(player.getUniqueId(), questId);
 
         if (currentProgress < requiredAmount) {
-            int newProgress = currentProgress + amountToAdd;
-            if (newProgress > requiredAmount) {
-                newProgress = requiredAmount;
-            }
-
+            int newProgress = Math.min(currentProgress + amountToAdd, requiredAmount);
             plugin.getDataManager().setProgress(player.getUniqueId(), questId, newProgress);
 
             if (newProgress >= requiredAmount && currentProgress < requiredAmount) {
-                player.sendMessage("§a§lQuest Completed! §7You have received your rewards.");
+                grantQuestRewards(player, qConf);
+            }
+        }
+    }
 
-                List<ItemStack> rewards = (List<ItemStack>) qConf.getList("rewards");
-                if (rewards != null) {
-                    NamespacedKey keyType = new NamespacedKey(plugin, "reward_type");
-                    NamespacedKey keyAmount = new NamespacedKey(plugin, "reward_amount");
-                    NamespacedKey keyCmd = new NamespacedKey(plugin, "reward_cmd");
+    private void processQuestProgressAbsolute(Player player, String questId, int stageReached) {
+        FileConfiguration qConf = plugin.getQuestManager().getQuest(questId);
+        if (qConf == null) return;
 
-                    for (ItemStack reward : rewards) {
-                        if (reward == null || reward.getType() == Material.AIR) continue;
+        int requiredAmount = qConf.getInt("amount", 1);
+        int currentProgress = plugin.getDataManager().getProgress(player.getUniqueId(), questId);
 
-                        ItemMeta meta = reward.getItemMeta();
-                        if (meta == null) continue;
+        if (currentProgress < requiredAmount && stageReached > currentProgress) {
+            int newProgress = Math.min(stageReached, requiredAmount);
+            plugin.getDataManager().setProgress(player.getUniqueId(), questId, newProgress);
 
-                        String type = meta.getPersistentDataContainer().getOrDefault(keyType, PersistentDataType.STRING, "ITEM");
-                        int amount = meta.getPersistentDataContainer().getOrDefault(keyAmount, PersistentDataType.INTEGER, reward.getAmount());
+            if (newProgress >= requiredAmount) {
+                grantQuestRewards(player, qConf);
+            }
+        }
+    }
 
-                        if (type.equals("EXP")) {
-                            player.giveExp(amount);
-                        } else if (type.equals("MONEY")) {
-                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "eco give " + player.getName() + " " + amount);
-                        } else if (type.equals("CMD")) {
-                            String cmd = meta.getPersistentDataContainer().getOrDefault(keyCmd, PersistentDataType.STRING, "");
-                            if (!cmd.isEmpty()) {
-                                cmd = cmd.replace("%player%", player.getName());
-                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
-                            }
-                        } else {
-                            ItemStack giveItem = reward.clone();
-                            giveItem.setAmount(amount);
-                            ItemMeta giveMeta = giveItem.getItemMeta();
-                            if (giveMeta != null) {
-                                giveMeta.getPersistentDataContainer().remove(keyType);
-                                giveMeta.getPersistentDataContainer().remove(keyAmount);
-                                giveMeta.getPersistentDataContainer().remove(new NamespacedKey(plugin, "reward_uuid"));
-                                giveItem.setItemMeta(giveMeta);
-                            }
-                            player.getInventory().addItem(giveItem);
-                        }
+    // Extracted Reward Logic
+    private void grantQuestRewards(Player player, FileConfiguration qConf) {
+        player.sendMessage("§a§lQuest Completed! §7You have received your rewards.");
+        List<ItemStack> rewards = (List<ItemStack>) qConf.getList("rewards");
+        if (rewards != null) {
+            NamespacedKey keyType = new NamespacedKey(plugin, "reward_type");
+            NamespacedKey keyAmount = new NamespacedKey(plugin, "reward_amount");
+            NamespacedKey keyCmd = new NamespacedKey(plugin, "reward_cmd");
+
+            for (ItemStack reward : rewards) {
+                if (reward == null || reward.getType() == Material.AIR) continue;
+                ItemMeta meta = reward.getItemMeta();
+                if (meta == null) continue;
+
+                String type = meta.getPersistentDataContainer().getOrDefault(keyType, PersistentDataType.STRING, "ITEM");
+                int amount = meta.getPersistentDataContainer().getOrDefault(keyAmount, PersistentDataType.INTEGER, reward.getAmount());
+
+                if (type.equals("EXP")) {
+                    player.giveExp(amount);
+                } else if (type.equals("MONEY")) {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "eco give " + player.getName() + " " + amount);
+                } else if (type.equals("CMD")) {
+                    String cmd = meta.getPersistentDataContainer().getOrDefault(keyCmd, PersistentDataType.STRING, "");
+                    if (!cmd.isEmpty()) {
+                        cmd = cmd.replace("%player%", player.getName());
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
                     }
+                } else {
+                    ItemStack giveItem = reward.clone();
+                    giveItem.setAmount(amount);
+                    ItemMeta giveMeta = giveItem.getItemMeta();
+                    if (giveMeta != null) {
+                        giveMeta.getPersistentDataContainer().remove(keyType);
+                        giveMeta.getPersistentDataContainer().remove(keyAmount);
+                        giveMeta.getPersistentDataContainer().remove(new NamespacedKey(plugin, "reward_uuid"));
+                        giveItem.setItemMeta(giveMeta);
+                    }
+                    player.getInventory().addItem(giveItem);
                 }
             }
         }
@@ -129,21 +164,15 @@ public class QuestListener implements Listener {
             Player player = event.getEntity().getKiller();
             LivingEntity deadEntity = event.getEntity();
 
-            // 1. Default Vanilla Target
             String target = deadEntity.getType().name();
 
-            // 2. Check for MasterDungeons Custom Mob
             if (Bukkit.getPluginManager().isPluginEnabled("MasterDungeons")) {
                 NamespacedKey mdKey = new NamespacedKey("masterdungeons", "md_mob_id");
                 if (deadEntity.getPersistentDataContainer().has(mdKey, PersistentDataType.STRING)) {
                     target = "MD:" + deadEntity.getPersistentDataContainer().get(mdKey, PersistentDataType.STRING);
-
-                    // Tip: If you ever want to check levels in the future, you can pull it here:
-                    // int mobLevel = deadEntity.getPersistentDataContainer().getOrDefault(new NamespacedKey("masterdungeons", "md_mob_level"), PersistentDataType.INTEGER, 1);
                 }
             }
 
-            // 3. Check for MythicMobs Custom Mob
             if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
                 try {
                     String mmId = getMythicMobId(deadEntity);
@@ -157,7 +186,6 @@ public class QuestListener implements Listener {
         }
     }
 
-    // Isolated in a helper method to prevent ClassNotFoundExceptions if MythicMobs isn't installed
     private String getMythicMobId(org.bukkit.entity.Entity entity) {
         if (io.lumine.mythic.bukkit.MythicBukkit.inst().getAPIHelper().isMythicMob(entity)) {
             return io.lumine.mythic.bukkit.MythicBukkit.inst().getAPIHelper().getMythicMobInstance(entity).getType().getInternalName();
