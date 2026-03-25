@@ -1,0 +1,16 @@
+name: MasterDailyQuests
+version: '1.0-SNAPSHOT'
+main: net.mastercraft.masterDailyQuests.MasterDailyQuests
+api-version: '1.21'
+authors: [ IamKk01 ]
+softdepend: [ ShopGUIPlus, PlaceholderAPI, MythicMobs, MasterDungeons ]
+
+commands:
+  dailyquests:
+    description: Opens available daily quests
+    aliases: [ mdq, dq ]
+    permission: mdailyquests.use
+  dqa:
+    description: Admin commands for daily quests
+    aliases: [ mdqa ]
+    permission: mdailyquests.admin.*

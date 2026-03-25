@@ -1,0 +1,26 @@
+player_interface:
+  size: 27
+  inventory_name: ':offset_-19::dq_main:'
+  quests:
+    '1': 11
+    '2': 14
+    '3': 17
+  items:
+    '1':
+      type: PLAYER_COMMAND
+      use_placeholders: true
+      item:
+        material: PAPER
+        custom_model_data: 11006
+        name: '&6&lɴᴇxᴛ ʀᴇғʀᴇsʜ'
+        lore:
+          - ''
+          - '&7The daily quests refresh'
+          - '&7every day. View the time'
+          - '&7left before next refresh!'
+          - ''
+          - '&6Quest Refresh: &f%odailyquests_drawin%'
+        slot:
+          - 20
+          - 21
+          - 22
