@@ -8,9 +8,11 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -63,7 +65,6 @@ public class PlayerMainGUI implements InventoryHolder {
                     String realTargetName = plugin.getRealTargetName(target);
                     String taskStr;
 
-                    // Custom string formatting for Dungeon Quests
                     if (type.equalsIgnoreCase("REACH_STAGE")) {
                         taskStr = "§7Reach Stage " + amount + " in " + realTargetName;
                     } else if (type.equalsIgnoreCase("PLAY_DUNGEON")) {
@@ -122,6 +123,14 @@ public class PlayerMainGUI implements InventoryHolder {
                     }
 
                     meta.setLore(dynamicLore);
+
+                    // --- THE GLOW EFFECT ---
+                    if (isCompleted) {
+                        meta.addEnchant(Enchantment.UNBREAKING, 1, true); // Changed from DURABILITY
+                        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                    }
+                    // -----------------------
+
                     questItem.setItemMeta(meta);
                 }
 

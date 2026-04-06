@@ -8,6 +8,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.enchantment.EnchantItemEvent;
@@ -19,7 +20,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class QuestListener implements Listener {
 
@@ -105,7 +109,6 @@ public class QuestListener implements Listener {
         }
     }
 
-    // Extracted Reward Logic
     private void grantQuestRewards(Player player, FileConfiguration qConf) {
         player.sendMessage("§a§lQuest Completed! §7You have received your rewards.");
         List<ItemStack> rewards = (List<ItemStack>) qConf.getList("rewards");
@@ -149,13 +152,67 @@ public class QuestListener implements Listener {
     }
 
     // ==========================================
+    // UTILITY: ITEMSADDER ITEM MATCHER
+    // ==========================================
+    private String getItemsAdderId(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return null;
+        if (Bukkit.getPluginManager().isPluginEnabled("ItemsAdder")) {
+            try {
+                ClassLoader iaLoader = Bukkit.getPluginManager().getPlugin("ItemsAdder").getClass().getClassLoader();
+                Class<?> customStackClass = Class.forName("dev.lone.itemsadder.api.CustomStack", true, iaLoader);
+                Object customStack = customStackClass.getMethod("byItemStack", org.bukkit.inventory.ItemStack.class).invoke(null, item);
+                if (customStack != null) {
+                    return (String) customStackClass.getMethod("getNamespacedID").invoke(customStack);
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+
+    // ==========================================
     // EVENTS
     // ==========================================
 
-    @EventHandler
+    private final Map<UUID, String> pendingIAMines = new HashMap<>();
+
+    // 1. Catches the block before ItemsAdder can destroy it
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onMineLowest(BlockBreakEvent event) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("ItemsAdder")) return;
+
+        try {
+            ClassLoader iaLoader = Bukkit.getPluginManager().getPlugin("ItemsAdder").getClass().getClassLoader();
+            Class<?> customBlockClass = Class.forName("dev.lone.itemsadder.api.CustomBlock", true, iaLoader);
+            Object customBlock = customBlockClass.getMethod("byAlreadyPlaced", org.bukkit.block.Block.class).invoke(null, event.getBlock());
+
+            if (customBlock != null) {
+                String id = (String) customBlockClass.getMethod("getNamespacedID").invoke(customBlock);
+                pendingIAMines.put(event.getPlayer().getUniqueId(), "IA:" + id);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // 2. Processes the quest logic after all plugins have fired
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onMine(BlockBreakEvent event) {
+        Player player = event.getPlayer();
         String target = event.getBlock().getType().name();
-        checkQuestProgress(event.getPlayer(), "MINING", target, 1);
+
+        // Check if we caught an ItemsAdder block for this player a millisecond ago
+        if (pendingIAMines.containsKey(player.getUniqueId())) {
+            target = pendingIAMines.remove(player.getUniqueId());
+
+            // ItemsAdder INTENTIONALLY cancels the event to prevent the vanilla block
+            // from dropping. We must grant quest progress even if it is cancelled!
+            checkQuestProgress(player, "MINING", target, 1);
+            return;
+        }
+
+        // For standard vanilla blocks, respect WorldGuard/protection plugins
+        if (event.isCancelled()) return;
+
+        checkQuestProgress(player, "MINING", target, 1);
     }
 
     @EventHandler
@@ -197,7 +254,12 @@ public class QuestListener implements Listener {
     public void onCraft(CraftItemEvent event) {
         if (event.getWhoClicked() instanceof Player player) {
             ItemStack result = event.getRecipe().getResult();
-            checkQuestProgress(player, "CRAFTING", result.getType().name(), result.getAmount());
+            String target = result.getType().name();
+
+            String iaId = getItemsAdderId(result);
+            if (iaId != null) target = "IA:" + iaId;
+
+            checkQuestProgress(player, "CRAFTING", target, result.getAmount());
         }
     }
 
@@ -205,6 +267,10 @@ public class QuestListener implements Listener {
     public void onEnchant(EnchantItemEvent event) {
         Player player = event.getEnchanter();
         String target = event.getItem().getType().name();
+
+        String iaId = getItemsAdderId(event.getItem());
+        if (iaId != null) target = "IA:" + iaId;
+
         checkQuestProgress(player, "ENCHANTING", target, 1);
     }
 
@@ -216,15 +282,19 @@ public class QuestListener implements Listener {
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 
+        String target = clickedItem.getType().name();
+        String iaId = getItemsAdderId(clickedItem);
+        if (iaId != null) target = "IA:" + iaId;
+
         if (event.getClickedInventory().getType() == InventoryType.BREWING) {
             if (event.getSlot() >= 0 && event.getSlot() <= 2) {
-                checkQuestProgress(player, "BREWING", clickedItem.getType().name(), 1);
+                checkQuestProgress(player, "BREWING", target, 1);
             }
         }
 
         if (event.getClickedInventory().getType() == InventoryType.MERCHANT) {
             if (event.getSlot() == 2) {
-                checkQuestProgress(player, "TRADING", clickedItem.getType().name(), clickedItem.getAmount());
+                checkQuestProgress(player, "TRADING", target, clickedItem.getAmount());
             }
         }
     }

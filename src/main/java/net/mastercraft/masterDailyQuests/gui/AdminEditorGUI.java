@@ -92,11 +92,12 @@ public class AdminEditorGUI implements InventoryHolder {
                 meta.setDisplayName("§eQuest: §f" + questId);
                 meta.setLore(List.of(
                         "§7Type: §b" + type,
-                        "§7Target: §b" + plugin.getRealTargetName(target), // Shows actual name
+                        "§7Target: §b" + plugin.getRealTargetName(target),
                         "§7Amount: §b" + amount,
                         "§7Rewards: §b" + rewardsCount + " items",
                         "",
-                        "§aClick to edit!"
+                        "§a[Left-Click] §7to edit",
+                        "§c[Shift+Right-Click] §7to delete"
                 ));
                 questItem.setItemMeta(meta);
             }

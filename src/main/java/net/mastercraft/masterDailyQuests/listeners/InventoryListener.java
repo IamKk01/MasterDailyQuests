@@ -8,6 +8,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -52,8 +53,20 @@ public class InventoryListener implements Listener {
                     }
                 } else if (clickedItem.getType() == Material.BOOK && clickedItem.hasItemMeta()) {
                     String questId = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName()).replace("Quest: ", "");
-                    String eventType = plugin.getQuestManager().getQuest(questId).getString("type", "UNKNOWN");
-                    QuestConfigGUI.open(player, questId, eventType, plugin);
+
+                    // --- NEW: Shift + Right Click to Delete ---
+                    if (event.getClick() == ClickType.SHIFT_RIGHT) {
+                        plugin.getQuestManager().deleteQuest(questId);
+                        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 1f, 1f);
+                        player.sendMessage("§c§lDeleted: §7Quest " + questId + " has been completely removed.");
+
+                        // Re-open the GUI to refresh the list
+                        AdminEditorGUI.open(player, plugin, gui.getPage());
+                    } else {
+                        // Normal Left Click to Edit
+                        String eventType = plugin.getQuestManager().getQuest(questId).getString("type", "UNKNOWN");
+                        QuestConfigGUI.open(player, questId, eventType, plugin);
+                    }
                 }
             }
             return;

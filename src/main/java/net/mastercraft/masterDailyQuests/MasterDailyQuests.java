@@ -32,7 +32,6 @@ public final class MasterDailyQuests extends JavaPlugin {
         questManager = new QuestManager(this);
         dataManager = new DataManager(this);
 
-        // --- COMMAND REGISTRATION WITH TAB COMPLETION ---
         PlayerCommand playerCmd = new PlayerCommand(this);
         getCommand("dailyquests").setExecutor(playerCmd);
         getCommand("dailyquests").setTabCompleter(playerCmd);
@@ -40,7 +39,6 @@ public final class MasterDailyQuests extends JavaPlugin {
         AdminCommand adminCmd = new AdminCommand(this);
         getCommand("dqa").setExecutor(adminCmd);
         getCommand("dqa").setTabCompleter(adminCmd);
-        // ------------------------------------------------
 
         getServer().getPluginManager().registerEvents(new InventoryListener(this), this);
         getServer().getPluginManager().registerEvents(new ChatListener(this), this);
@@ -83,6 +81,7 @@ public final class MasterDailyQuests extends JavaPlugin {
 
         String resolvedName = null;
 
+        // 1. Check for MasterDungeons Mobs
         if (raw.startsWith("MD:")) {
             String id = raw.substring(3);
             if (getServer().getPluginManager().isPluginEnabled("MasterDungeons")) {
@@ -107,6 +106,24 @@ public final class MasterDailyQuests extends JavaPlugin {
             if (resolvedName == null) resolvedName = formatFriendlyName(id);
         }
 
+        // 2. Check for ItemsAdder Custom Items/Blocks (WITH CLASSLOADER FIX)
+        else if (raw.startsWith("IA:")) {
+            String id = raw.substring(3);
+            if (getServer().getPluginManager().isPluginEnabled("ItemsAdder")) {
+                try {
+                    ClassLoader iaLoader = getServer().getPluginManager().getPlugin("ItemsAdder").getClass().getClassLoader();
+                    Class<?> customStackClass = Class.forName("dev.lone.itemsadder.api.CustomStack", true, iaLoader);
+                    Object customStack = customStackClass.getMethod("getInstance", String.class).invoke(null, id);
+                    if (customStack != null) {
+                        String realName = (String) customStackClass.getMethod("getDisplayName").invoke(customStack);
+                        if (realName != null) resolvedName = ChatColor.translateAlternateColorCodes('&', realName);
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (resolvedName == null) resolvedName = formatFriendlyName(id.replace(":", " "));
+        }
+
+        // 3. Check for MythicMobs
         else if (raw.startsWith("MYTHIC:")) {
             String id = raw.substring(7);
             if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
@@ -117,6 +134,7 @@ public final class MasterDailyQuests extends JavaPlugin {
             if (resolvedName == null) resolvedName = formatFriendlyName(id);
         }
 
+        // 4. Vanilla Mobs/Blocks
         else {
             resolvedName = formatFriendlyName(raw);
         }

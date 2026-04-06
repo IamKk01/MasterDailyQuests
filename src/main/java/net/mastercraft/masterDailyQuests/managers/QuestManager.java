@@ -75,4 +75,20 @@ public class QuestManager {
             }
         }
     }
+
+    // ==========================================
+    // NEW: Safely delete from RAM and Disk
+    // ==========================================
+    public void deleteQuest(String id) {
+        // 1. Remove it from the live server memory
+        if (questConfigs.containsKey(id)) {
+            questConfigs.remove(id);
+        }
+
+        // 2. Permanently delete the configuration file
+        File file = new File(questsFolder, id + ".yml");
+        if (file.exists()) {
+            file.delete();
+        }
+    }
 }
