@@ -27,24 +27,38 @@ public class QuestConfigGUI implements InventoryHolder {
         String currentTarget = qConf != null ? qConf.getString("target", "ANY") : "ANY";
         int currentAmount = qConf != null ? qConf.getInt("amount", 1) : 1;
         int rewardCount = qConf != null && qConf.getList("rewards") != null ? qConf.getList("rewards").size() : 0;
+        String currentDifficulty = qConf != null ? qConf.getString("difficulty", "EASY").toUpperCase() : "EASY";
 
-        initializeItems(currentTarget, currentAmount, rewardCount, plugin);
+        initializeItems(currentTarget, currentAmount, rewardCount, currentDifficulty, plugin);
     }
 
-    private void initializeItems(String target, int amount, int rewardCount, MasterDailyQuests plugin) {
+    private void initializeItems(String target, int amount, int rewardCount, String difficulty, MasterDailyQuests plugin) {
         inventory.setItem(10, createGuiItem(Material.NAME_TAG, "§e§lChoose Target",
-                "§8■ §7Current Task Target: §b" + plugin.getRealTargetName(target), // Fetches actual name
+                "§8■ §7Current Task Target: §b" + plugin.getRealTargetName(target),
                 "",
                 "§e► Click to type a new target ID"
         ));
 
-        inventory.setItem(12, createGuiItem(Material.PAPER, "§b§lChoose Amount",
+        inventory.setItem(11, createGuiItem(Material.PAPER, "§b§lChoose Amount",
                 "§8■ §7Current Amount: §a" + amount,
                 "",
                 "§b► Click to type a new amount"
         ));
 
-        inventory.setItem(14, createGuiItem(Material.GOLD_BLOCK, "§6§lSet Reward",
+        // --- NEW: Difficulty Toggle Button ---
+        Material diffMat = Material.IRON_SWORD;
+        String diffColor = "§a"; // Easy
+        if (difficulty.equals("MEDIUM")) { diffMat = Material.GOLDEN_SWORD; diffColor = "§6"; }
+        if (difficulty.equals("HARD")) { diffMat = Material.DIAMOND_SWORD; diffColor = "§c"; }
+
+        inventory.setItem(13, createGuiItem(diffMat, "§c§lDifficulty: " + diffColor + difficulty,
+                "§8■ §7Current: " + diffColor + difficulty,
+                "",
+                "§c► Click to cycle difficulty"
+        ));
+        // -------------------------------------
+
+        inventory.setItem(15, createGuiItem(Material.GOLD_BLOCK, "§6§lSet Reward",
                 "§8■ §7Configured Rewards: §e" + rewardCount,
                 "",
                 "§6► Click to open Reward Editor"

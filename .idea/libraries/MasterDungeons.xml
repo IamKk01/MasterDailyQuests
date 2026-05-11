@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="MasterDungeons">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/libs/MasterDungeons.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -2,6 +2,7 @@ package net.mastercraft.masterDailyQuests;
 
 import net.mastercraft.masterDailyQuests.commands.AdminCommand;
 import net.mastercraft.masterDailyQuests.commands.PlayerCommand;
+import net.mastercraft.masterDailyQuests.hooks.PAPIExpansion;
 import net.mastercraft.masterDailyQuests.listeners.ChatListener;
 import net.mastercraft.masterDailyQuests.listeners.DungeonEventListener;
 import net.mastercraft.masterDailyQuests.listeners.InventoryListener;
@@ -10,10 +11,15 @@ import net.mastercraft.masterDailyQuests.listeners.ShopGUIPlusListener;
 import net.mastercraft.masterDailyQuests.managers.ConfigManager;
 import net.mastercraft.masterDailyQuests.managers.DataManager;
 import net.mastercraft.masterDailyQuests.managers.QuestManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,6 +30,7 @@ public final class MasterDailyQuests extends JavaPlugin {
     private QuestManager questManager;
 
     private final Map<String, String> nameCache = new HashMap<>();
+    private String currentDay;
 
     @Override
     public void onEnable() {
@@ -56,6 +63,25 @@ public final class MasterDailyQuests extends JavaPlugin {
             getLogger().info("Successfully hooked into MasterDungeons Events!");
         }
 
+        // --- NEW: PlaceholderAPI Hook ---
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new PAPIExpansion(this).register();
+            getLogger().info("Successfully hooked into PlaceholderAPI!");
+        }
+
+        // --- NEW: Midnight Reset Task ---
+        currentDay = LocalDate.now().toString();
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            String nowDay = LocalDate.now().toString();
+            if (!currentDay.equals(nowDay)) { // Midnight has passed!
+                currentDay = nowDay;
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    dataManager.generateNewQuests(p.getUniqueId());
+                    p.sendMessage("§e§lDaily Quests Refreshed! §7Check your menu for new tasks!");
+                }
+            }
+        }, 1200L, 1200L); // Checks every 60 seconds (1200 ticks)
+
         getLogger().info("MasterDailyQuests has been enabled successfully.");
     }
 
@@ -71,6 +97,19 @@ public final class MasterDailyQuests extends JavaPlugin {
     public ConfigManager getConfigManager() { return configManager; }
     public DataManager getDataManager() { return dataManager; }
     public QuestManager getQuestManager() { return questManager; }
+
+    // --- NEW: Placeholder Math Logic ---
+    public String getTimeUntilResetFormatted() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay(); // Next midnight
+        Duration duration = Duration.between(now, midnight);
+
+        long hours = duration.toHours();
+        long minutes = duration.toMinutesPart();
+        long seconds = duration.toSecondsPart();
+
+        return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
+    }
 
     public String getRealTargetName(String raw) {
         if (raw == null || raw.equalsIgnoreCase("ANY")) return "Any";

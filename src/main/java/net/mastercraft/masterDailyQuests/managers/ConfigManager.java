@@ -23,14 +23,12 @@ public class ConfigManager {
         return plugin.getConfig().getString("player_interface.inventory_name", "Daily Quests");
     }
 
-    // UPDATED to read the new dictionary format dynamically
     public List<Integer> getQuestSlots() {
         List<Integer> slots = new ArrayList<>();
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("player_interface.quests");
 
         if (section != null) {
             List<String> keys = new ArrayList<>(section.getKeys(false));
-            // Sort keys so '1', '2', '3' are always in order
             keys.sort(Comparator.comparingInt(Integer::parseInt));
 
             for (String key : keys) {
@@ -38,6 +36,11 @@ public class ConfigManager {
             }
         }
         return slots;
+    }
+
+    // --- NEW: Gets the specific slot for Easy, Medium, or Hard quests ---
+    public int getDifficultySlot(String difficulty) {
+        return plugin.getConfig().getInt("player_interface.difficulty_slots." + difficulty.toUpperCase(), -1);
     }
 
     public void reload() {

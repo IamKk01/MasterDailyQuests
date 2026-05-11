@@ -11,7 +11,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class AdminEditorGUI implements InventoryHolder {
@@ -47,8 +46,26 @@ public class AdminEditorGUI implements InventoryHolder {
         }
         inventory.setItem(49, createBtn);
 
+        // --- NEW: Custom Sorting Logic ---
         List<String> allQuests = new ArrayList<>(plugin.getQuestManager().getQuestIds());
-        Collections.sort(allQuests);
+        allQuests.sort((q1, q2) -> {
+            FileConfiguration conf1 = plugin.getQuestManager().getQuest(q1);
+            FileConfiguration conf2 = plugin.getQuestManager().getQuest(q2);
+
+            String diff1 = conf1 != null ? conf1.getString("difficulty", "EASY").toUpperCase() : "EASY";
+            String diff2 = conf2 != null ? conf2.getString("difficulty", "EASY").toUpperCase() : "EASY";
+
+            int weight1 = getDifficultyWeight(diff1);
+            int weight2 = getDifficultyWeight(diff2);
+
+            // Sort by difficulty weight first (Easy -> Medium -> Hard)
+            if (weight1 != weight2) {
+                return Integer.compare(weight1, weight2);
+            }
+            // If difficulties are identical, sort alphabetically by Quest ID
+            return q1.compareToIgnoreCase(q2);
+        });
+        // ---------------------------------
 
         int maxPerPage = 28;
         int startIndex = page * maxPerPage;
@@ -85,12 +102,14 @@ public class AdminEditorGUI implements InventoryHolder {
             String target = qConf.getString("target", "ANY");
             int amount = qConf.getInt("amount", 1);
             int rewardsCount = qConf.getList("rewards") != null ? qConf.getList("rewards").size() : 0;
+            String difficulty = qConf.getString("difficulty", "EASY").toUpperCase();
 
             ItemStack questItem = new ItemStack(Material.BOOK);
             ItemMeta meta = questItem.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName("§eQuest: §f" + questId);
                 meta.setLore(List.of(
+                        "§7Difficulty: " + getDifficultyColor(difficulty) + difficulty,
                         "§7Type: §b" + type,
                         "§7Target: §b" + plugin.getRealTargetName(target),
                         "§7Amount: §b" + amount,
@@ -103,6 +122,18 @@ public class AdminEditorGUI implements InventoryHolder {
             }
             inventory.setItem(innerSlots[i], questItem);
         }
+    }
+
+    private int getDifficultyWeight(String diff) {
+        if (diff.equals("MEDIUM")) return 2;
+        if (diff.equals("HARD")) return 3;
+        return 1; // Default to EASY
+    }
+
+    private String getDifficultyColor(String diff) {
+        if (diff.equals("MEDIUM")) return "§6";
+        if (diff.equals("HARD")) return "§c";
+        return "§a"; // Default to EASY
     }
 
     public static void open(Player player, MasterDailyQuests plugin, int page) {

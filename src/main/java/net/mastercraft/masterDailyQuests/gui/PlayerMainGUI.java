@@ -34,19 +34,20 @@ public class PlayerMainGUI implements InventoryHolder {
 
         renderCustomItems(player, plugin, size);
 
-        List<Integer> slots = config.getQuestSlots();
         List<String> activeQuests = plugin.getDataManager().getActiveQuests(player.getUniqueId());
 
         if (activeQuests != null && !activeQuests.isEmpty()) {
-            int slotIndex = 0;
 
             for (String questId : activeQuests) {
-                if (slotIndex >= slots.size()) break;
-
                 FileConfiguration qConf = plugin.getQuestManager().getQuest(questId);
                 if (qConf == null) continue;
 
-                int slot = slots.get(slotIndex);
+                // --- NEW: Gets the slot based on the quest's difficulty! ---
+                String difficulty = qConf.getString("difficulty", "EASY").toUpperCase();
+                int slot = config.getDifficultySlot(difficulty);
+                if (slot == -1) continue; // Failsafe if the config slot is missing
+                // -----------------------------------------------------------
+
                 String type = qConf.getString("type", "UNKNOWN");
                 String target = qConf.getString("target", "ANY");
                 int amount = qConf.getInt("amount", 1);
@@ -79,6 +80,7 @@ public class PlayerMainGUI implements InventoryHolder {
 
                     dynamicLore.add("§3Task:");
                     dynamicLore.add("§3▌ " + taskStr);
+                    dynamicLore.add("§3▌ §7Difficulty: " + getDifficultyColor(difficulty) + difficulty);
                     dynamicLore.add("");
 
                     dynamicLore.add("§3Progress:");
@@ -124,12 +126,10 @@ public class PlayerMainGUI implements InventoryHolder {
 
                     meta.setLore(dynamicLore);
 
-                    // --- THE GLOW EFFECT ---
                     if (isCompleted) {
-                        meta.addEnchant(Enchantment.UNBREAKING, 1, true); // Changed from DURABILITY
+                        meta.addEnchant(Enchantment.UNBREAKING, 1, true);
                         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                     }
-                    // -----------------------
 
                     questItem.setItemMeta(meta);
                 }
@@ -137,9 +137,14 @@ public class PlayerMainGUI implements InventoryHolder {
                 if (slot >= 0 && slot < size) {
                     inventory.setItem(slot, questItem);
                 }
-                slotIndex++;
             }
         }
+    }
+
+    private String getDifficultyColor(String diff) {
+        if (diff.equals("MEDIUM")) return "§6";
+        if (diff.equals("HARD")) return "§c";
+        return "§a";
     }
 
     private void renderCustomItems(Player player, MasterDailyQuests plugin, int invSize) {

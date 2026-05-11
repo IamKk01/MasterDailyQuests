@@ -222,15 +222,17 @@ public class QuestListener implements Listener {
             LivingEntity deadEntity = event.getEntity();
 
             String target = deadEntity.getType().name();
+            boolean isDungeonMob = false;
 
             if (Bukkit.getPluginManager().isPluginEnabled("MasterDungeons")) {
                 NamespacedKey mdKey = new NamespacedKey("masterdungeons", "md_mob_id");
                 if (deadEntity.getPersistentDataContainer().has(mdKey, PersistentDataType.STRING)) {
                     target = "MD:" + deadEntity.getPersistentDataContainer().get(mdKey, PersistentDataType.STRING);
+                    isDungeonMob = true;
                 }
             }
 
-            if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
+            if (!isDungeonMob && Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
                 try {
                     String mmId = getMythicMobId(deadEntity);
                     if (mmId != null) {

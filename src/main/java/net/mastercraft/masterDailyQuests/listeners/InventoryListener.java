@@ -5,6 +5,7 @@ import net.mastercraft.masterDailyQuests.gui.*;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -101,6 +102,21 @@ public class InventoryListener implements Listener {
                     ChatListener.addPendingInput(player, "AMOUNT", gui.getQuestId(), gui.getEventType());
                 } else if (clickedItem.getType() == Material.GOLD_BLOCK) {
                     QuestRewardGUI.open(player, gui.getQuestId(), gui.getEventType(), plugin, null);
+                } else if (clickedItem.getType() == Material.IRON_SWORD || clickedItem.getType() == Material.GOLDEN_SWORD || clickedItem.getType() == Material.DIAMOND_SWORD) {
+                    // --- NEW: Difficulty Cycler ---
+                    FileConfiguration qConf = plugin.getQuestManager().getQuest(gui.getQuestId());
+                    String currentDiff = qConf.getString("difficulty", "EASY").toUpperCase();
+
+                    String nextDiff = "EASY";
+                    if (currentDiff.equals("EASY")) nextDiff = "MEDIUM";
+                    else if (currentDiff.equals("MEDIUM")) nextDiff = "HARD";
+
+                    qConf.set("difficulty", nextDiff);
+                    plugin.getQuestManager().saveQuest(gui.getQuestId());
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+
+                    // Re-opens GUI to update visuals
+                    QuestConfigGUI.open(player, gui.getQuestId(), gui.getEventType(), plugin);
                 }
             }
             return;
