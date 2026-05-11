@@ -117,6 +117,8 @@ public class QuestListener implements Listener {
             NamespacedKey keyAmount = new NamespacedKey(plugin, "reward_amount");
             NamespacedKey keyCmd = new NamespacedKey(plugin, "reward_cmd");
 
+            boolean inventoryWasFull = false; // Tracks if we need to send a warning message
+
             for (ItemStack reward : rewards) {
                 if (reward == null || reward.getType() == Material.AIR) continue;
                 ItemMeta meta = reward.getItemMeta();
@@ -145,8 +147,22 @@ public class QuestListener implements Listener {
                         giveMeta.getPersistentDataContainer().remove(new NamespacedKey(plugin, "reward_uuid"));
                         giveItem.setItemMeta(giveMeta);
                     }
-                    player.getInventory().addItem(giveItem);
+
+                    // --- Safe Item Giving with Drops ---
+                    Map<Integer, ItemStack> leftovers = player.getInventory().addItem(giveItem);
+                    if (!leftovers.isEmpty()) {
+                        inventoryWasFull = true;
+                        for (ItemStack leftover : leftovers.values()) {
+                            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                        }
+                    }
+                    // ----------------------------------------
                 }
+            }
+
+            if (inventoryWasFull) {
+                player.sendMessage("§c§lInventory Full! §7Some of your rewards were dropped on the ground!");
+                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             }
         }
     }
